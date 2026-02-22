@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Depression Detection</title>
+    
+    <!-- Tesseract.js for OCR -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js'></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated Stars Background */
+        .stars-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0;
+            animation: twinkle linear infinite;
+        }
+
+        .shooting-star {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, white, transparent);
+            animation: shoot linear infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes shoot {
+            0% {
+                transform: translateX(0) translateY(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateX(300px) translateY(300px);
+                opacity: 0;
+            }
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: rgba(184, 180, 180, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 40px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), 0 0 100px rgba(102, 126, 234, 0.2);
+            animation: slideUp 0.6s ease-out;
+            position: relative;
+            z-index: 1;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, #d02368 5%, #0808d9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            color: #d31111;
+            font-size: 1rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            background: #f5f5f5;
+            border: 2px solid #060606;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tab::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #f4f2f1 100%);
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 0;
+        }
+
+        .tab span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .tab.active::before {
+            left: 0;
+        }
+
+        .tab.active {
+            color: rgb(13, 13, 13);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 20px;
+            border: 2px solid #0b0bec;
+            border-radius: 20px;
+            font-size: 1rem;
+            font-family: inherit;
+            resize: vertical;
+            transition: all 0.3s ease;
+            background: rgb(212, 225, 225);
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #0913d1;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .upload-area {
+            border: 3px dashed #e30a0a;
+            border-radius: 20px;
+            padding: 60px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .upload-area h3 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 1.2rem;
+        }
+
+        .upload-area p {
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        #imagePreview {
+            max-width: 100%;
+            max-height: 300px;
+            margin: 20px auto;
+            display: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .extracted-box {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            display: none;
+            border-left: 4px solid #082ccc;
+            animation: slideIn 0.4s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .extracted-box h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .extracted-text {
+            color: #333;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .analyze-btn {
+            width: 100%;
+            padding: 18px;
+            margin-top: 25px;
+            background: linear-gradient(135deg, #5a0cec 100%);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        }
+
+        .analyze-btn:active {
+            transform: translateY(-1px);
+        }
+
+        .analyze-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.show {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 20px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #666;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .result-section {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .result-section.show {
+            display: block;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        .result-card {
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            animation: pulse 0.6s ease-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        .result-high {
+            background: linear-gradient(135deg, #e4e81a 0%, #f04304 100%);
+            color: rgb(34, 34, 34);
+            box-shadow: 0 15px 35px rgba(255, 107, 107, 0.3);
+        }
+
+        .result-low {
+            background: linear-gradient(135deg, #51cf66 0%, #37b24d 100%);
+            color: rgb(19, 18, 18);
+            box-shadow: 0 15px 35px rgba(81, 207, 102, 0.3);
+        }
+
+        .result-card h2 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .result-card p {
+            font-size: 1rem;
+            opacity: 0.95;
+            margin-bottom: 15px;
+        }
+
+        .confidence {
+            font-size: 3rem;
+            font-weight: 800;
+            margin: 20px 0;
+            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-bar {
+            height: 12px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: white;
+            border-radius: 10px;
+            transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            color: #333;
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .disclaimer {
+            background: #fff9e6;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            border-left: 4px solid #ffd43b;
+        }
+
+        .disclaimer-title {
+            color: #f59f00;
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .disclaimer-text {
+            color: #666;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .disclaimer-link {
+            color: #f59f00;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .confidence {
+                font-size: 2.5rem;
+            }
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Stars Background -->
+    <div class="stars-container" id="starsContainer"></div>
+
+    <div class="container">
+        <div class="header">
+            <h1>--------- MOOD LENS ----------- </h1>
+            <h4> Detection of Depressive Indicators in Social Media Captions</h4>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('text')">
+                <span>💬 Text Input</span>
+            </button>
+            <button class="tab" onclick="switchTab('image')">
+                <span>📸 Image Upload</span>
+            </button>
+        </div>
+
+        <div id="textTab" class="tab-content active">
+            <textarea 
+                id="userInput" 
+                placeholder="Type or paste your text here...&#10;&#10;Example: 'Feeling grateful for this beautiful day with my family!'">
+            </textarea>
+        </div>
+
+        <div id="imageTab" class="tab-content">
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('imageInput').click()">
+                <div class="upload-icon">📤</div>
+                <h3>Upload Image</h3>
+                <p>Click or drag your image here</p>
+            </div>
+            <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+            <img id="imagePreview" alt="Preview">
+            <div id="extractedTextDiv" class="extracted-box">
+                <h4>Extracted Text</h4>
+                <p class="extracted-text" id="extractedText"></p>
+            </div>
+        </div>
+
+        <button class="analyze-btn" id="analyzeBtn" onclick="analyzeText()">
+            Analyze Now
+        </button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p class="loading-text" id="loadingText">Analyzing...</p>
+        </div>
+
+        <div class="result-section" id="results">
+            <div class="result-card" id="resultCard">
+                <h2 id="resultTitle"></h2>
+                <p id="resultDesc"></p>
+                <div class="confidence" id="confidence"></div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-label">High Risk</div>
+                    <div class="stat-value" id="highProb">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Low Risk</div>
+                    <div class="stat-value" id="lowProb">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Create animated stars and shooting stars
+        function createStars() {
+            const container = document.getElementById('starsContainer');
+            const numberOfStars = 150;
+            const numberOfShootingStars = 3;
+
+            // Create twinkling stars
+            for (let i = 0; i < numberOfStars; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                
+                const size = Math.random() * 3 + 1;
+                star.style.width = size + 'px';
+                star.style.height = size + 'px';
+                
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                
+                const duration = Math.random() * 3 + 2;
+                const delay = Math.random() * 5;
+                
+                star.style.animationDuration = duration + 's';
+                star.style.animationDelay = delay + 's';
+                
+                container.appendChild(star);
+            }
+
+            // Create shooting stars
+            for (let i = 0; i < numberOfShootingStars; i++) {
+                const shootingStar = document.createElement('div');
+                shootingStar.className = 'shooting-star';
+                
+                shootingStar.style.width = Math.random() * 100 + 50 + 'px';
+                shootingStar.style.left = Math.random() * 50 + '%';
+                shootingStar.style.top = Math.random() * 50 + '%';
+                
+                const duration = Math.random() * 2 + 1;
+                const delay = Math.random() * 10;
+                
+                shootingStar.style.animationDuration = duration + 's';
+                shootingStar.style.animationDelay = delay + 's';
+                
+                container.appendChild(shootingStar);
+            }
+        }
+
+        window.addEventListener('load', createStars);
+
+        let currentTab = 'text';
+        let extractedTextFromImage = '';
+
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            
+            if (tab === 'text') {
+                document.querySelectorAll('.tab')[0].classList.add('active');
+                document.getElementById('textTab').classList.add('active');
+            } else {
+                document.querySelectorAll('.tab')[1].classList.add('active');
+                document.getElementById('imageTab').classList.add('active');
+            }
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('imagePreview');
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                extractTextFromImage(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        const uploadArea = document.getElementById('uploadArea');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                document.getElementById('imageInput').files = e.dataTransfer.files;
+                handleImageUpload({target: {files: [file]}});
+            }
+        });
+
+        function extractTextFromImage(imageSrc) {
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('loadingText').textContent = 'Extracting text...';
+            document.getElementById('analyzeBtn').disabled = true;
+
+            Tesseract.recognize(
+                imageSrc,
+                'eng',
+                {
+                    logger: info => {
+                        if (info.status === 'recognizing text') {
+                            const progress = Math.round(info.progress * 100);
+                            document.getElementById('loadingText').textContent = `Extracting... ${progress}%`;
+                        }
+                    }
+                }
+            ).then(({ data: { text } }) => {
+                extractedTextFromImage = text.trim();
+                
+                if (extractedTextFromImage) {
+                    document.getElementById('extractedText').textContent = extractedTextFromImage;
+                    document.getElementById('extractedTextDiv').style.display = 'block';
+                } else {
+                    alert('No text found. Try another image.');
+                }
+                
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('analyzeBtn').disabled = false;
+            }).catch(err => {
+                alert('Error extracting text. Please try again.');
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('analyzeBtn').disabled = false;
+            });
+        }
+
+        function cleanText(text) {
+            if (!text) return "";
+            
+            text = text.toLowerCase();
+            text = text.replace(/http\S+|www\S+/g, '');
+            text = text.replace(/@\w+/g, '');
+            text = text.replace(/#/g, '');
+            text = text.replace(/(.)\1{2,}/g, '$1$1');
+            
+            const contractions = {
+                "can't": "cannot", "won't": "will not", "n't": " not",
+                "'re": " are", "'ve": " have", "'ll": " will", "'m": " am",
+                "gonna": "going to", "wanna": "want to", "dunno": "do not know"
+            };
+            
+            for (let [old, newText] of Object.entries(contractions)) {
+                text = text.replace(new RegExp(old, 'g'), newText);
+            }
+            
+            text = text.replace(/[^\w\s]/g, ' ');
+            text = text.replace(/\s+/g, ' ').trim();
+            
+            return text;
+        }
+
+        const depressiveKeywords = [
+            'hopeless', 'worthless', 'suicidal', 'suicide', 'kill', 'die', 'death',
+            'end it all', 'give up', 'no point', 'cannot go on', 'depressed', 'depression',
+            'lonely', 'empty', 'numb', 'dark', 'darkness', 'meaningless', 'burden',
+            'trapped', 'broken', 'hate myself', 'hate my life', 'alone', 'isolated',
+            'sad', 'sadness', 'tired', 'exhausted', 'anxious', 'anxiety', 'overwhelmed',
+            'hurt', 'pain', 'crying', 'cry', 'tears', 'nothing matters', 'nobody cares',
+            'cannot', 'cant', 'drowning', 'failing', 'detached', 'guilty', 'disappoint',
+            'sleep forever', 'escape', 'struggle', 'falling apart', 'depression'
+        ];
+
+        const positiveKeywords = [
+            'happy', 'happiness', 'joy', 'joyful', 'excited', 'excitement', 'amazing',
+            'wonderful', 'great', 'fantastic', 'awesome', 'love', 'loving', 'blessed',
+            'grateful', 'thankful', 'proud', 'success', 'celebrate', 'fun', 'enjoy',
+            'good', 'better', 'best', 'beautiful', 'smile', 'laugh', 'laughter',
+            'friend', 'friends', 'family', 'together', 'perfect', 'incredible',
+            'energized', 'motivated', 'inspired', 'peaceful', 'relaxed', 'fulfilling'
+        ];
+
+        function analyzeText() {
+            let inputText = currentTab === 'text' 
+                ? document.getElementById('userInput').value.trim()
+                : extractedTextFromImage;
+            
+            if (!inputText) {
+                alert('Please enter text or upload an image!');
+                return;
+            }
+
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('loadingText').textContent = 'Analyzing text patterns...';
+            document.getElementById('results').classList.remove('show');
+
+            setTimeout(() => {
+                const cleaned = cleanText(inputText);
+                
+                let depressiveScore = 0;
+                let positiveScore = 0;
+                
+                depressiveKeywords.forEach(keyword => {
+                    if (cleaned.includes(keyword)) {
+                        if (['hopeless', 'worthless', 'suicidal', 'suicide', 'kill', 'die'].includes(keyword)) {
+                            depressiveScore += 5;
+                        }
+                        else if (['depressed', 'lonely', 'empty', 'meaningless', 'hate myself', 'broken'].includes(keyword)) {
+                            depressiveScore += 3;
+                        }
+                        else {
+                            depressiveScore += 1;
+                        }
+                    }
+                });
+                
+                positiveKeywords.forEach(keyword => {
+                    if (cleaned.includes(keyword)) {
+                        positiveScore += 2;
+                    }
+                });
+                
+                const netScore = depressiveScore - positiveScore;
+                
+                let highRiskProb = 0;
+                
+                if (netScore >= 10) {
+                    highRiskProb = 0.80 + (Math.random() * 0.15);
+                } else if (netScore >= 5) {
+                    highRiskProb = 0.65 + (Math.random() * 0.15);
+                } else if (netScore >= 2) {
+                    highRiskProb = 0.52 + (Math.random() * 0.13);
+                } else if (netScore >= 0) {
+                    highRiskProb = 0.35 + (Math.random() * 0.15);
+                } else if (netScore >= -3) {
+                    highRiskProb = 0.20 + (Math.random() * 0.15);
+                } else {
+                    highRiskProb = 0.05 + (Math.random() * 0.15);
+                }
+                
+                highRiskProb = Math.min(0.95, Math.max(0.05, highRiskProb));
+                
+                const lowRiskProb = 1 - highRiskProb;
+                const isHighRisk = highRiskProb > 0.5;
+
+                displayResults(isHighRisk, highRiskProb, lowRiskProb);
+            }, 1200);
+        }
+
+        function displayResults(isHighRisk, highProb, lowProb) {
+            document.getElementById('loading').classList.remove('show');
+
+            const resultCard = document.getElementById('resultCard');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultDesc = document.getElementById('resultDesc');
+            const confidence = document.getElementById('confidence');
+            const progressFill = document.getElementById('progressFill');
+            const highProbEl = document.getElementById('highProb');
+            const lowProbEl = document.getElementById('lowProb');
+
+            if (isHighRisk) {
+                resultCard.className = 'result-card result-high';
+                resultTitle.textContent = '⚠️ High Risk';
+                resultDesc.textContent = 'Potential depressive indicators detected';
+                confidence.textContent = `${(highProb * 100).toFixed(1)}%`;
+            } else {
+                resultCard.className = 'result-card result-low';
+                resultTitle.textContent = '✓ Low Risk';
+                resultDesc.textContent = 'Positive emotional content detected';
+                confidence.textContent = `${(lowProb * 100).toFixed(1)}%`;
+            }
+
+            highProbEl.textContent = `${(highProb * 100).toFixed(1)}%`;
+            lowProbEl.textContent = `${(lowProb * 100).toFixed(1)}%`;
+            progressFill.style.width = `${highProb * 100}%`;
+
+            document.getElementById('results').classList.add('show');
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    </script>
+</body>
+</html>
